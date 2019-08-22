@@ -19,6 +19,48 @@ rollout CameraAnimator "Custom Camera Animator"
     button btn_Assign "Assign Animation" pos:[80, 400] width:160 height:30
     -- end rollout ui
 
+    global selectedCamera
+
+    fn getFrameNumberFromName camName = (
+        frameSection = (filterstring camName ".")[1]
+        result = 0
+        cnt = frameSection.count - 1
+        for i = 1 to frameSection.count do (
+            char = frameSection[i] as Integer
+            if char == undefined do char = 0
+            result = result + char * (pow 10 cnt)
+            cnt = cnt - 1
+            -- if (char >= "0" && char <= "9") do (
+            -- --     result = result + char
+            -- )
+        )
+        print (result as integer)
+    )
+    fn getCamerasInfoFromScene = (
+        print "get cameras info with list"
+        info = #()
+        selectIndexes = lst_Cameras.selection
+        items = lst_Cameras.items
+        print selectIndexes
+        for i in selectIndexes do (
+            itemInfo = #()
+            camName = items[i]
+            frame = getFrameNumberFromName(camName)
+            cam = execute ("$'"+camName + "'")
+            
+            append itemInfo frame
+            append itemInfo cam.pos
+            append itemInfo cam.dir
+
+            append info itemInfo
+        )
+        return info
+    )
+
+    fn getCamerasInfoFromFile = (
+        print "get cameras info from file"
+    )
+
     on btn_PickCameraList pressed do (
         print("pick camera list from scene")
         cameraList = $selection
@@ -42,6 +84,42 @@ rollout CameraAnimator "Custom Camera Animator"
     on btn_DeselectAllCameraList pressed do (
         print "deselect all cameras"
         lst_Cameras.selection = #()
+    )
+
+    on btn_PickCamera changed state do (
+        if state == true do (
+            try (
+                target_Camera = pickobject propt:"Pick Camera"
+                edit_TargetCamera.text = target_Camera.name
+                btn_PickCamera.checked = false;
+                selectedCamera = target_Camera
+            ) catch ()
+        )
+    )
+
+    on btn_Assign pressed do (
+        if isValidObj(selectedCamera) then (
+            camerasInfo = #()
+            if radio_ImportType.state == 1 then (
+                camerasInfo = getCamerasInfoFromScene();
+            ) else (
+                camerasInfo = getCamerasInfoFromFile();
+            )
+
+            -- assign animation keys
+            with animate on (
+                for i = 1 to camerasInfo.count do (
+                    item = camerasInfo[i]
+                    at time item[1] (
+                        selectedCamera.pos = item[2]
+                        selectedCamera.dir = item[3]
+                    )
+                )
+            )
+            -- end assign animation keys
+        ) else (
+            messageBox "Camera isn't selected" title:"Error!"
+        )
     )
 )
 
